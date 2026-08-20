@@ -1,0 +1,88 @@
+============================================================
+Multi-Agent AIGC Content Risk Pipeline
+============================================================
+
+[1/5] Loading dataset...
+Kaggle download failed: No module named 'kagglehub'
+Attempting download from OSF repository...
+OSF download failed: 500 Server Error: Internal Server Error for url: https://osf.io/download/mryx5/
+Attempting download from HuggingFace Hub...
+HuggingFace download failed: Repo id must be in the form 'repo_name' or 'namespace/repo_name': 'datasets/mexwell/fake-reviews-dataset'. Use `repo_type` argument if needed.
+All external sources unavailable. Generating synthetic dataset for demo...
+Generating synthetic dataset for demo...
+Final dataset: 436 rows, Label distribution: {0: 317, 1: 119} (synthetic demo data)
+
+[2/5] Splitting data (80/20)...
+Train set: 348 rows
+Test set: 88 rows
+
+[3/5] Initializing orchestrator and training classifier...
+Initializing embedding model: tfidf
+GEMINI_API_KEY not set; LLM-as-Judge will be skipped
+Using local JSON logging for traces
+
+=== Training Classifier ===
+Extracting handcrafted features...
+Combining features...
+Feature matrix shape: (348, 265)
+Scaling features...
+Training XGBoost classifier...
+Training complete.
+
+[4/5] Processing test set through pipeline...
+
+Processing 88 reviews...
+Step 1: Running similarity clustering tool...
+Step 2: Running classifier tool...
+Step 3: Making tiebreaker decisions...
+Processing reviews:   0%|          | 0/88 [00:00<?, ?it/s]Processing reviews: 100%|██████████| 88/88 [00:00<00:00, 293168.19it/s]
+Error: Object of type int64 is not JSON serializable
+Traceback (most recent call last):
+  File "/Users/kavyasriyakkala/Desktop/MultiAgentAIGCContentRiskPipeline/main.py", line 118, in <module>
+    main(args)
+    ~~~~^^^^^^
+  File "/Users/kavyasriyakkala/Desktop/MultiAgentAIGCContentRiskPipeline/main.py", line 74, in main
+    orchestrator.save_traces()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/kavyasriyakkala/Desktop/MultiAgentAIGCContentRiskPipeline/agent.py", line 304, in save_traces
+    self.observability.save_local_traces()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/kavyasriyakkala/Desktop/MultiAgentAIGCContentRiskPipeline/agent.py", line 74, in save_local_traces
+    f.write(json.dumps(trace) + '\n')
+            ~~~~~~~~~~^^^^^^^
+  File "/opt/anaconda3/lib/python3.13/json/__init__.py", line 231, in dumps
+    return _default_encoder.encode(obj)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/opt/anaconda3/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/opt/anaconda3/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/opt/anaconda3/lib/python3.13/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+                    f'is not JSON serializable')
+TypeError: Object of type int64 is not JSON serializable
+
+Pipeline execution stats:
+  Total reviews: 88
+  Judge calls: 54
+  Judge call rate: 61.4%
+  Batch latency: 0.01s
+  Avg per review: 0.0001s
+
+[5/5] Generating evaluation report...
+
+Metrics saved to results/metrics.json
+
+=== FINAL METRICS ===
+Accuracy:  1.0000
+Precision: 1.0000
+Recall:    1.0000
+F1 Score:  1.0000
+AUROC:     1.0000
+
+Cost Efficiency:
+  Total reviews: 88
+  Judge API calls: 54
+  Judge call rate: 61.4%
+  Local-only rate: 38.6% (COST EFFICIENCY WIN)
+Full report saved to results/report.json

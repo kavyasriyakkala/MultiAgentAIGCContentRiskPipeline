@@ -1,0 +1,17 @@
+{
+  "accuracy": 0.858,
+  "precision": 0.8551587301587301,
+  "recall": 0.862,
+  "f1": 0.8585657370517928,
+  "auroc": 0.944924,
+  "true_negatives": 427,
+  "false_positives": 73,
+  "false_negatives": 69,
+  "true_positives": 431,
+  "total_reviews_processed": 1000,
+  "total_judge_api_calls": 593,
+  "judge_call_rate_percent": 59.3,
+  "local_only_rate_percent": 40.7,
+  "gemini_api_available": true,
+  "timestamp": "2026-08-19T18:57:54.009601"
+}

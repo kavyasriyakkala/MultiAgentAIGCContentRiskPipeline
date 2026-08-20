@@ -1,0 +1,65 @@
+============================================================
+Multi-Agent AIGC Content Risk Pipeline
+============================================================
+
+[1/5] Loading dataset...
+Loading dataset from cache: data/fake_reviews_dataset.csv
+Dataset size (40412 rows) exceeds target. Stratified resampling to 5000...
+Final dataset: 4999 rows, Label distribution: {0: 2501, 1: 2498} (stratified sample of 4999 from 40432 original)
+
+[2/5] Splitting data (80/20)...
+Train set: 3999 rows
+Test set: 1000 rows
+
+[3/5] Initializing orchestrator and training classifier...
+Initializing embedding model: tfidf
+GEMINI_API_KEY not set; LLM-as-Judge will be skipped
+Using local JSON logging for traces
+
+=== Training Classifier ===
+Extracting handcrafted features...
+Combining features...
+Feature matrix shape: (3999, 521)
+Scaling features...
+Training XGBoost classifier...
+Training complete.
+
+[4/5] Processing test set through pipeline...
+
+Processing 1000 reviews...
+Step 1: Running similarity clustering tool...
+Step 2: Running classifier tool...
+Step 3: Making tiebreaker decisions...
+Processing reviews:   0%|          | 0/1000 [00:00<?, ?it/s]Processing reviews: 100%|██████████| 1000/1000 [00:00<00:00, 345210.21it/s]
+
+Pipeline execution stats:
+  Total reviews: 1000
+  Judge calls: 593
+  Judge call rate: 59.3%
+  Batch latency: 0.11s
+  Avg per review: 0.0001s
+
+[5/5] Generating evaluation report...
+
+Metrics saved to results/metrics.json
+
+=== FINAL METRICS ===
+Accuracy:  0.8570
+Precision: 0.8521
+Recall:    0.8640
+F1 Score:  0.8580
+AUROC:     0.9449
+
+Cost Efficiency:
+  Total reviews: 1000
+  Judge API calls: 593
+  Judge call rate: 59.3%
+  Local-only rate: 40.7% (COST EFFICIENCY WIN)
+Full report saved to results/report.json
+Traces saved to logs/trace.jsonl
+Detailed results saved to results/detailed_results.csv
+
+============================================================
+Pipeline Complete!
+Results saved to results/
+============================================================
