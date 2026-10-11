@@ -75,13 +75,16 @@ class Orchestrator:
         self.decisions_trace = []
 
     def train_classifier(self, train_df: pd.DataFrame):
-        """Train classifier on training data"""
+        """Train classifier on training data and fit Tool 1 KNN index"""
         print("\n=== Training Classifier ===")
         review_texts = train_df['review_text'].tolist()
         labels = train_df['label'].values
 
         # Embed
         embeddings, _ = self.tool1.embed_reviews(review_texts)
+
+        # Fit Tool 1 KNN similarity index on training data
+        self.tool1.fit_training_embeddings(embeddings, labels)
 
         # Train classifier
         self.tool2.train(review_texts, embeddings, labels)
@@ -175,14 +178,16 @@ class Orchestrator:
                     tool2_confidence=tool2_conf
                 )
 
+                judge_api_succeeded = tool3_output.get('api_called', False)
                 final_verdict = tool3_output['verdict']
                 if final_verdict == -1:
-                    # Judge couldn't decide -> use classifier
+                    # Judge unavailable or failed -> fall back to classifier
                     final_verdict = tool2_pred
 
+                status = "judge_answered" if judge_api_succeeded else "judge_failed→classifier_fallback"
                 decision_reasoning = (
                     f"Tool1={tool1_binary} Tool2={tool2_pred} (conf={tool2_conf:.2f}) "
-                    f"-> Judge called -> {final_verdict} ({tool3_output['reasoning'][:50]})"
+                    f"-> {status} -> {final_verdict} ({tool3_output['reasoning'][:50]})"
                 )
 
             # Log this decision
@@ -197,6 +202,7 @@ class Orchestrator:
                 'tool3_verdict': int(final_verdict),
                 'tool3_reasoning': tool3_output.get('reasoning', ''),
                 'judge_called': need_judge,
+                'judge_api_succeeded': tool3_output.get('api_called', False),
                 'final_prediction': int(final_verdict),
                 'decision_reasoning': decision_reasoning,
                 'latency_tool1_seconds': float(tool1_output.get('latency_seconds', 0) / len(review_texts)),

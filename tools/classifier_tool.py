@@ -40,7 +40,7 @@ class ClassifierTool:
         Extract handcrafted features from reviews.
 
         Features:
-            - Embedding vector (from sentence-transformers)
+            - Embedding vector (TF-IDF)
             - Review length (normalized)
             - Punctuation density (exclamation, question marks)
             - Word count

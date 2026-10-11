@@ -51,68 +51,86 @@ class SimilarityTool:
 
         return embeddings, latency
 
-    def detect_clusters(self, embeddings, eps=0.3, min_samples=2):
+    def fit_training_embeddings(self, train_embeddings: np.ndarray, train_labels: np.ndarray):
         """
-        Run DBSCAN clustering on embeddings.
-        Near-duplicates will have high cosine similarity (low distance).
-
-        Args:
-            embeddings: np.ndarray of shape (n, d)
-            eps: max distance for DBSCAN
-            min_samples: min points to form a cluster
-
-        Returns:
-            cluster_labels: np.ndarray of cluster IDs (-1 = noise)
+        Store training embeddings split by label for KNN similarity scoring at inference.
+        Called once after training data is embedded.
         """
+        self.train_fake_embeddings = train_embeddings[train_labels == 1]
+        self.train_genuine_embeddings = train_embeddings[train_labels == 0]
+
+    def compute_knn_risk_score(self, embeddings: np.ndarray, k: int = 5) -> np.ndarray:
+        """
+        For each review, compute a risk score based on how much closer it is
+        to known-fake training examples than known-genuine ones (cosine distance).
+
+        Returns values in [0, 1]: >0.5 means closer to fakes.
+        Falls back to DBSCAN-based scores if training embeddings are not available.
+        """
+        if not hasattr(self, 'train_fake_embeddings') or len(self.train_fake_embeddings) == 0:
+            return self._dbscan_risk_scores(embeddings)
+
+        from sklearn.metrics.pairwise import cosine_distances as _cd
+        risk_scores = np.zeros(len(embeddings))
+
+        dist_to_fake = _cd(embeddings, self.train_fake_embeddings)
+        dist_to_genuine = _cd(embeddings, self.train_genuine_embeddings)
+
+        for i in range(len(embeddings)):
+            k_fake = min(k, dist_to_fake.shape[1])
+            k_genuine = min(k, dist_to_genuine.shape[1])
+            avg_fake = np.mean(np.partition(dist_to_fake[i], k_fake - 1)[:k_fake])
+            avg_genuine = np.mean(np.partition(dist_to_genuine[i], k_genuine - 1)[:k_genuine])
+            # score = P(closer to fake): low dist_to_fake → high risk
+            total = avg_fake + avg_genuine
+            risk_scores[i] = avg_genuine / total if total > 0 else 0.5
+
+        return risk_scores
+
+    def _dbscan_risk_scores(self, embeddings: np.ndarray, eps: float = 0.7, min_samples: int = 2) -> np.ndarray:
+        """Fallback: DBSCAN with a permissive eps so clusters actually form."""
         distances = cosine_distances(embeddings)
         clustering = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed')
         cluster_labels = clustering.fit_predict(distances)
 
-        return cluster_labels
+        non_noise = cluster_labels[cluster_labels >= 0]
+        if len(non_noise) == 0:
+            return np.full(len(embeddings), 0.5)
 
-    def __call__(self, review_texts, review_ids=None, eps=0.3, min_samples=2):
+        cluster_sizes = np.bincount(non_noise)
+        risk = np.zeros(len(embeddings))
+        max_size = np.max(cluster_sizes)
+        for i, label in enumerate(cluster_labels):
+            if label >= 0:
+                risk[i] = min(cluster_sizes[label] / max(2, max_size), 1.0)
+            else:
+                risk[i] = 0.0
+        return risk
+
+    def __call__(self, review_texts, review_ids=None):
         """
-        Main entry point: embed and cluster a batch of reviews.
-
-        Args:
-            review_texts: list of review strings
-            review_ids: optional list of IDs to match with results
-            eps: DBSCAN eps parameter
-            min_samples: DBSCAN min_samples parameter
+        Main entry point: embed reviews and compute KNN-based similarity risk scores.
 
         Returns:
-            results: dict with keys:
-                - 'cluster_labels': np.ndarray of cluster IDs per review
-                - 'cluster_risk_scores': np.ndarray of risk scores (0-1)
-                  Higher = more likely to be in a templated cluster
+            dict with:
+                - 'cluster_labels': placeholder array (kept for interface compatibility)
+                - 'cluster_risk_scores': np.ndarray of risk scores (0-1), >0.5 = closer to fakes
                 - 'latency_seconds': float
+                - 'embeddings': np.ndarray
         """
         start_time = time.time()
 
-        # Embed
-        embeddings, embed_latency = self.embed_reviews(review_texts)
+        embeddings, _ = self.embed_reviews(review_texts)
+        risk_scores = self.compute_knn_risk_score(embeddings)
 
-        # Cluster
-        cluster_labels = self.detect_clusters(embeddings, eps=eps, min_samples=min_samples)
-
-        # Compute risk scores based on cluster size
-        # Rationale: very large near-duplicate clusters suggest template/bot activity
-        cluster_sizes = np.bincount(cluster_labels[cluster_labels >= 0], minlength=len(np.unique(cluster_labels)))
-        cluster_density = np.zeros(len(review_texts))
-
-        for i, label in enumerate(cluster_labels):
-            if label >= 0:
-                cluster_size = cluster_sizes[label]
-                # Normalize: cluster_size / max_cluster_size, capped at 1.0
-                cluster_density[i] = min(cluster_size / max(2, np.max(cluster_sizes)), 1.0)
-            else:
-                cluster_density[i] = 0.0  # Noise point
+        # Cluster labels kept as placeholder for downstream compatibility
+        cluster_labels = np.where(risk_scores > 0.5, 1, 0)
 
         total_latency = time.time() - start_time
 
         return {
             'cluster_labels': cluster_labels,
-            'cluster_risk_scores': cluster_density,
+            'cluster_risk_scores': risk_scores,
             'latency_seconds': total_latency,
             'tool_name': 'similarity_clustering',
             'embeddings': embeddings

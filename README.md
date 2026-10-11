@@ -11,7 +11,7 @@ A cost-efficient multi-agent system for detecting AI-generated fake product revi
 2. **XGBoost Classifier** (embeddings + handcrafted features) — lightweight, interpretable predictions
 3. **LLM Judge** (Google Gemini, selective) — tiebreaker for uncertain cases
 
-**Key Result:** 85.8% accuracy, 86.2% recall, 94.5% AUROC. 40.7% of reviews resolved locally with no API calls.
+**Key Result:** 85.7% accuracy, 86.4% recall, 94.5% AUROC — beating a TF-IDF + Logistic Regression baseline by ~8 points. 54.2% of reviews resolved locally with no API calls; 45.8% escalated to the judge on low-confidence or disagreement.
 
 ## Dataset
 
@@ -43,16 +43,24 @@ For each review:
 Tested on 1,000 reviews (80/20 train/test split, stratified by label):
 
 ```
-Accuracy:     85.8%
-Precision:    85.5%
-Recall:       86.2%
-F1 Score:     85.9%
-AUROC:        94.5%
+Pipeline (Tool 1 + Tool 2 cascade):
+  Accuracy:     85.7%
+  Precision:    85.2%
+  Recall:       86.4%
+  F1 Score:     85.8%
+  AUROC:        94.5%
 
-Cost Efficiency:
-  - Local-only decisions: 40.7% (no API call)
-  - Judge calls:          59.3% (on low-confidence/disagreement)
-  - Estimated cost:       ~$0 (free tier)
+Baseline (TF-IDF + Logistic Regression):
+  Accuracy:     77.9%
+  F1 Score:     77.9%
+  AUROC:        85.3%
+
+Improvement over baseline: +7.8pp accuracy, +9.2pp AUROC
+
+Judge Routing:
+  - Local-only decisions:    54.2% (Tools 1+2 agreed with high confidence)
+  - Escalated to judge:      45.8% (disagreement or confidence < 0.65)
+  - Estimated cost (judge):  ~$0 on free tier for low-volume use
 ```
 
 ## Installation
@@ -158,11 +166,11 @@ Enables reproducible, deterministic inference without external APIs.
 
 ## Key Findings
 
-**Finding 1: Local Tools are Strong**
-The local classifier achieves 85.8% accuracy on its own. Judge calls provide marginal improvement, confirming the 0.65 threshold is well-tuned.
+**Finding 1: XGBoost cascade substantially outperforms baseline**
+The pipeline achieves 85.7% accuracy vs. 77.9% for TF-IDF + Logistic Regression — an 8-point gap on the same data. The KNN similarity signal and handcrafted features (punctuation density, unique word ratio, repetition) add meaningful signal beyond raw TF-IDF.
 
-**Finding 2: Tool Orthogonality**
-Similarity clustering and classifier predictions disagree ~30% of the time, suggesting they capture different signals. Consensus on high-confidence cases is highly reliable.
+**Finding 2: Tool 1 provides a real orthogonal signal**
+After fixing Tool 1 to use KNN similarity to known-fake training examples (replacing broken DBSCAN), tools agree on ~54% of reviews. The 45.8% escalation rate reflects genuine uncertainty, not noise.
 
 **Finding 3: Feature Importance**
 Punctuation density, unique word ratio, and repetition patterns are strong indicators of AI-generated text, matching known characteristics of modern LLM outputs.
@@ -176,7 +184,7 @@ Punctuation density, unique word ratio, and repetition patterns are strong indic
 ## For Employers / Portfolio
 
 **Highlight:**
-> Engineered a cost-efficient multi-agent detection system achieving **85.8% accuracy** with only **40.7% local-only decisions** (no API calls). Demonstrates proficiency in: multi-agent orchestration, cost-aware decision logic, local ML inference, API integration with graceful degradation, and reproducible observability.
+> Engineered a cost-efficient multi-agent detection system achieving **85.7% accuracy / 94.5% AUROC** on 1,000 reviews — **+7.8pp over a TF-IDF + Logistic Regression baseline**. 54.2% of reviews resolved locally with no API calls; ambiguous cases escalated to a blind LLM judge. Demonstrates: multi-agent orchestration, cost-aware routing, local ML inference, LLM API integration with graceful degradation, and JSON observability tracing.
 
 **Key Skills Demonstrated:**
 - Multi-agent ReAct-style orchestration
