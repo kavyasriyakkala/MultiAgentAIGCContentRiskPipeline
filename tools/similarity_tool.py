@@ -132,6 +132,6 @@ class SimilarityTool:
             'cluster_labels': cluster_labels,
             'cluster_risk_scores': risk_scores,
             'latency_seconds': total_latency,
-            'tool_name': 'similarity_clustering',
+            'tool_name': 'knn_similarity',
             'embeddings': embeddings
         }
